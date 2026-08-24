@@ -4,6 +4,8 @@
 node_modules/
 .env
 .eve-horizon.yaml
+.eve/profile.yaml
+.eve/profiles.json
 *.local
 .DS_Store
 secrets.env
