@@ -6,9 +6,11 @@ This template gets you started in 5 minutes. One command, AI configures everythi
 
 ## Quick Start
 
-### Default Environment (Staging)
+### Default Platform and App Environment
 
-By default, use **staging** for guidance and deploys. Local Docker development is optional and should be used only when explicitly requested.
+Connect the CLI to your staging Eve Horizon platform. This starter's manifest
+declares one application environment named **sandbox**; deploy there until you
+deliberately add another environment. Local Docker development is optional.
 
 Set your CLI to staging:
 
@@ -69,7 +71,7 @@ cd my-project
 
 # Remove template history and start fresh
 rm -rf .git
-git init
+git init -b main
 git add -A
 git commit -m "Initial commit"
 
@@ -110,7 +112,9 @@ my-project/
 
 This repo is a starting point. Once you pick your real domain and tech stack, treat the sample API/UI as disposable and replace it. The source of truth for how agents should work is `AGENTS.md`—keep it updated as the project evolves.
 
-Local development is intended to run via Docker Compose, and then be transposed into `.eve/manifest.yaml` for deployment to a remote Eve cluster (staging by default).
+Local development runs via Docker Compose and is then transposed into
+`.eve/manifest.yaml` for deployment to the manifest's `sandbox` environment on
+your remote Eve platform.
 
 ## Database
 
@@ -172,15 +176,14 @@ docker compose up --build
 # Run API directly (requires local Postgres on 5432)
 DATABASE_URL=postgres://app:app@localhost:5432/eve_starter node apps/api/index.js
 
-# Deploy to environments (requires --ref with 40-char SHA or ref resolved against --repo-dir)
+# Deploy to the manifest-defined environment
 eve env deploy sandbox --ref main --repo-dir .
-eve env deploy staging --ref 0123456789abcdef0123456789abcdef01234567
 
-# Run the CI/CD pipeline (staging)
-eve pipeline run ci-cd-main --env staging
+# Run the manifest-defined deployment pipeline
+eve pipeline run deploy-sandbox --env sandbox
 
-# Validate required secrets and remediation hints
-eve project sync --validate-secrets
+# Validate without syncing or mutating the project
+eve manifest validate --project <project-id> --path .eve/manifest.yaml
 
 # Create a job
 eve job create --description "Review the codebase and suggest improvements"
@@ -268,29 +271,12 @@ Deploy to an environment using `eve env deploy` (requires `--ref` with a 40-char
 eve env deploy sandbox --ref main --repo-dir .
 eve env deploy sandbox --ref 0123456789abcdef0123456789abcdef01234567
 
-# Deploy to staging
-eve env deploy staging --ref main --repo-dir .
-eve env deploy staging --ref 0123456789abcdef0123456789abcdef01234567
 ```
 
-**Note**: The `--ref` parameter is required and must be a 40-character SHA, or a ref resolved against `--repo-dir`/cwd.
-
-### Promotion Flow (sandbox → staging)
-
-The typical promotion workflow when using pipelines:
-
-```bash
-# 1. Build and deploy to sandbox environment
-eve env deploy sandbox --ref 0123456789abcdef0123456789abcdef01234567
-
-# 2. Get release information after build
-eve release resolve v1.2.3
-
-# 3. Promote to staging with the same ref and release ID
-eve env deploy staging --ref 0123456789abcdef0123456789abcdef01234567 --inputs '{"release_id":"rel_xxx"}'
-```
-
-This pattern allows you to build once in sandbox, then promote the same artifacts to staging.
+The `--ref` parameter is required and must be a 40-character SHA, or a ref
+resolved against `--repo-dir`/cwd. The starter does not declare a `staging`
+application environment. Add and validate one in `.eve/manifest.yaml` before
+documenting or running a promotion flow.
 
 ## Next Steps
 

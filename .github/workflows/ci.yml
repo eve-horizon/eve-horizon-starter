@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: starter-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  application:
+    name: Application and manifest
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: eve_starter
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://app:app@localhost:5432/eve_starter
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        working-directory: apps/api
+        run: npm ci
+
+      - name: Apply migration
+        working-directory: apps/api
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs/promises';
+          import pg from 'pg';
+          const sql = await fs.readFile('../../db/migrations/20260224000000_create_todos.sql', 'utf8');
+          const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+          await client.connect();
+          await client.query(sql);
+          await client.end();
+          NODE
+
+      - name: Test application
+        working-directory: apps/api
+        run: npm test
+
+      - name: Validate Compose
+        run: docker compose config --quiet
+
+      - name: Validate starter policy
+        run: ./scripts/validate-starter.sh
+
+  public-init:
+    name: Anonymous CLI initialization
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize from this template and install public skills
+        env:
+          GH_TOKEN: ''
+          GITHUB_TOKEN: ''
+          GIT_CONFIG_NOSYSTEM: '1'
+          GIT_CONFIG_GLOBAL: /dev/null
+        run: |
+          target="$(mktemp -d)/starter"
+          npx --yes @eve-horizon/cli@0.2.71 init "$target" --template "$GITHUB_WORKSPACE"
+          test -f "$target/.eve/manifest.yaml"
+          test -L "$target/.agent/skills/eve-read-eve-docs"
+          test -e "$target/.agent/skills/eve-read-eve-docs/SKILL.md"
+
+      - name: Verify public migration image
+        run: |
+          token="$(curl -fsSL 'https://public.ecr.aws/token/?service=public.ecr.aws&scope=repository:eve-horizon/migrate:pull' | jq -r '.token')"
+          curl -fsSL \
+            -H "Authorization: Bearer $token" \
+            -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
+            'https://public.ecr.aws/v2/w7c4v0w3/eve-horizon/migrate/manifests/latest' \
+            | jq -e '.schemaVersion == 2' >/dev/null

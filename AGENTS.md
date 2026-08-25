@@ -19,9 +19,11 @@ cat .agent/skills/eve-read-eve-docs/references/cli.md
 This ensures CLI usage, `--repo-dir`, and deploy flows are current before editing anything.
 
 
-## Default Environment (Staging)
+## Default Platform and App Environment
 
-Default to **staging** for usage guidance and deployments. Use local/docker only when explicitly asked to do local development.
+Connect to a staging Eve Horizon platform by default. The starter manifest
+declares one application environment, **sandbox**. Deploy to `sandbox` until the
+manifest is deliberately extended. Use local/docker for local development.
 
 Set the API URL for all CLI commands:
 
@@ -35,7 +37,8 @@ export EVE_API_URL=https://api.eve.example.com
 - **Stack**: Staging-first Eve Horizon with Docker Compose for local dev
 - **Skills**: eve-se skillpack installed via `eve init` or `eve skills install`
 
-Local dev runs via Docker Compose and is then translated into `.eve/manifest.yaml` for deployment to the remote staging cluster.
+Local dev runs via Docker Compose and is then translated into
+`.eve/manifest.yaml` for deployment to `sandbox` on the remote Eve platform.
 
 ## Key Files
 
@@ -53,22 +56,18 @@ Local dev runs via Docker Compose and is then translated into `.eve/manifest.yam
 docker compose up --build   # http://localhost:3000
 ```
 
-### Deploy to environments
+### Deploy the starter
 
 **Via pipeline** (recommended for CI/CD):
 ```bash
-eve pipeline run ci-cd-main --env staging
+eve pipeline run deploy-sandbox --env sandbox
 ```
 
 **Direct deployment** (requires explicit git ref):
 ```bash
-# Deploy to test environment with git SHA or ref resolved against --repo-dir
-eve env deploy test --ref 0123456789abcdef0123456789abcdef01234567
-eve env deploy test --ref main --repo-dir .
-
-# Deploy to staging with git SHA or ref resolved against --repo-dir
-eve env deploy staging --ref 0123456789abcdef0123456789abcdef01234567
-eve env deploy staging --ref main --repo-dir .
+# Deploy to sandbox with git SHA or ref resolved against --repo-dir
+eve env deploy sandbox --ref 0123456789abcdef0123456789abcdef01234567
+eve env deploy sandbox --ref main --repo-dir .
 ```
 
 **Note**: The `--ref` parameter is required and must be a 40-character SHA, or a ref resolved against `--repo-dir`/cwd.
@@ -82,27 +81,15 @@ eve build diagnose <build_id>     # Full diagnostic (spec + runs + artifacts + l
 eve build logs <build_id>         # Build output logs
 ```
 
-### Promotion flow (test → staging)
-```bash
-# 1. Build and deploy to test
-eve env deploy test --ref 0123456789abcdef0123456789abcdef01234567
-
-# 2. Get release information
-eve release resolve v1.2.3
-
-# 3. Promote to staging with release reference
-eve env deploy staging --ref 0123456789abcdef0123456789abcdef01234567 --inputs '{"release_id":"rel_xxx"}'
-```
-
 ### Check deployment
 ```bash
-eve env show proj_xxx staging
+eve env show proj_xxx sandbox
 ```
 
 ### Add a new service
 1. Add Dockerfile in `apps/<name>/`
 2. Add service to `.eve/manifest.yaml`
-3. Deploy: `eve env deploy staging --ref main --repo-dir .` or `eve pipeline run ci-cd-main --env staging`
+3. Deploy: `eve env deploy sandbox --ref main --repo-dir .` or `eve pipeline run deploy-sandbox --env sandbox`
 
 ## Skills Available
 
@@ -120,8 +107,8 @@ Browse `.agent/skills` to see installed skills, then load with `skill read <skil
 
 1. Make changes to code
 2. Test locally: `docker compose up --build`
-3. Deploy: `eve env deploy staging --ref main --repo-dir .` (or use `eve pipeline run ci-cd-main --env staging`)
-4. Verify: `eve env show proj_xxx staging`
+3. Deploy: `eve env deploy sandbox --ref main --repo-dir .` (or use `eve pipeline run deploy-sandbox --env sandbox`)
+4. Verify: `eve env show proj_xxx sandbox`
 
 ## Keep AGENTS.md Current (Critical)
 
