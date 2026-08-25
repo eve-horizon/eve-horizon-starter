@@ -79,10 +79,13 @@ jobs:
           GIT_CONFIG_GLOBAL: /dev/null
         run: |
           target="$(mktemp -d)/starter"
-          npx --yes @eve-horizon/cli@0.2.71 init "$target" --template "$GITHUB_WORKSPACE"
+          npx --yes @eve-horizon/cli@0.2.73 init "$target" --template "$GITHUB_WORKSPACE"
           test -f "$target/.eve/manifest.yaml"
           test -L "$target/.agent/skills/eve-read-eve-docs"
           test -e "$target/.agent/skills/eve-read-eve-docs/SKILL.md"
+          test "$(git -C "$target" branch --show-current)" = main
+          test "$(git -C "$target" log -1 --format=%an)" = 'Eve Horizon Starter'
+          test "$(git -C "$target" log -1 --format=%ae)" = 'eve-init@users.noreply.github.com'
 
       - name: Verify public migration image
         run: |
