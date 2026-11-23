@@ -23,12 +23,20 @@ ruby -ryaml -e '
   abort "migrate service missing" unless manifest.dig("services", "migrate")
 ' "$MANIFEST"
 
-grep -Fq 'public.ecr.aws/w7c4v0w3/eve-horizon/migrate:latest' \
-  "$REPO_ROOT/docker-compose.yml" \
-  || fail "Docker Compose does not use the public migration image"
+# Compose and the manifest run the same migrate image: Eve's, from GHCR, at a
+# pinned platform version.
+migrate_image() {
+  ruby -ryaml -e 'puts YAML.load_file(ARGV.fetch(0)).dig("services", "migrate", "image")' "$1"
+}
+manifest_image="$(migrate_image "$MANIFEST")"
+compose_image="$(migrate_image "$REPO_ROOT/docker-compose.yml")"
+[[ $manifest_image =~ ^ghcr\.io/eve-horizon/eve-horizon/migrate:[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+  || fail "manifest migrate image must be ghcr.io/eve-horizon/eve-horizon/migrate:<version>: $manifest_image"
+[[ $compose_image == "$manifest_image" ]] \
+  || fail "Docker Compose and the manifest use different migrate images"
 
 if git -C "$REPO_ROOT" grep -n -I -E \
-  'ghcr\.io/eve-horizon|github\.com/Incept5|ci-cd-main|eve env deploy staging|eve project sync --validate-secrets|^GITHUB_TOKEN=' \
+  'public\.ecr\.aws|ghcr\.io/eve-horizon/eve-migrate|github\.com/Incept5|ci-cd-main|eve env deploy staging|eve project sync --validate-secrets|^GITHUB_TOKEN=' \
   -- . ':(exclude)scripts/validate-starter.sh'; then
   fail "starter contains a private, nonexistent, or manifest-inconsistent instruction"
 fi
