@@ -90,11 +90,13 @@ jobs:
           test "$(git -C "$target" log -1 --format=%an)" = 'Eve Horizon Starter'
           test "$(git -C "$target" log -1 --format=%ae)" = 'eve-init@users.noreply.github.com'
 
-      - name: Verify public migration image
+      - name: Verify the migrate image is public
         run: |
-          token="$(curl -fsSL 'https://public.ecr.aws/token/?service=public.ecr.aws&scope=repository:eve-horizon/migrate:pull' | jq -r '.token')"
+          image="$(ruby -ryaml -e 'puts YAML.load_file(".eve/manifest.yaml").dig("services", "migrate", "image")')"
+          tag="${image##*:}"
+          token="$(curl -fsSL 'https://ghcr.io/token?service=ghcr.io&scope=repository:eve-horizon/eve-horizon/migrate:pull' | jq -r '.token')"
           curl -fsSL \
             -H "Authorization: Bearer $token" \
-            -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
-            'https://public.ecr.aws/v2/w7c4v0w3/eve-horizon/migrate/manifests/latest' \
+            -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json' \
+            "https://ghcr.io/v2/eve-horizon/eve-horizon/migrate/manifests/$tag" \
             | jq -e '.schemaVersion == 2' >/dev/null
